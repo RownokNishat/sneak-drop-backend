@@ -1,9 +1,8 @@
 const express = require("express");
-const { PrismaClient } = require("@prisma/client");
+const prisma = require("../lib/prisma");
 const { getIO } = require("../lib/socket");
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // Complete purchase
 router.post("/drops/:dropId/purchase", async (req, res) => {

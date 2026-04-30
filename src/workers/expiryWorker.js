@@ -1,8 +1,6 @@
-const { PrismaClient } = require("@prisma/client");
+const prisma = require("../lib/prisma");
 const { expiryQueue } = require("../lib/queue");
 const { getIO } = require("../lib/socket");
-
-const prisma = new PrismaClient();
 
 // Process expiry checks
 expiryQueue.process("check-expiry", async (job) => {

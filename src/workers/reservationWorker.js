@@ -1,8 +1,6 @@
-const { PrismaClient } = require("@prisma/client");
+const prisma = require("../lib/prisma");
 const { reservationQueue, expiryQueue } = require("../lib/queue");
 const { getIO } = require("../lib/socket");
-
-const prisma = new PrismaClient();
 
 // Process reservations - ONE AT A TIME PER DROP
 reservationQueue.process("reserve", 1, async (job) => {

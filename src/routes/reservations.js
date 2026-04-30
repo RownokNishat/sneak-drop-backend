@@ -1,9 +1,8 @@
 const express = require("express");
-const { PrismaClient } = require("@prisma/client");
+const prisma = require("../lib/prisma");
 const { reservationQueue } = require("../lib/queue");
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // Reserve item (adds to queue)
 router.post("/drops/:dropId/reserve", async (req, res) => {
