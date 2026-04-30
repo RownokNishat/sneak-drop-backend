@@ -18,10 +18,10 @@ const reservationQueue = new Bull("reservation-queue", {
     }
   },
   defaultJobOptions: {
-    attempts: 3,
+    attempts: 20, // Retry for up to ~100 seconds (20 * 5s)
     backoff: {
-      type: "exponential",
-      delay: 2000,
+      type: "fixed",
+      delay: 5000, // Wait 5s between retries
     },
     removeOnComplete: true,
     removeOnFail: 100,
