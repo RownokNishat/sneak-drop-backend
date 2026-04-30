@@ -5,26 +5,20 @@ const redis = require("../config/redis");
 const client = redis;
 const subscriber = redis.duplicate();
 
-// Create queues
-const reservationQueue = new Bull("reservation-queue", {
-  createClient: (type) => {
-    switch (type) {
-      case "client":
-        return client;
-      case "subscriber":
-        return subscriber;
-      default:
-        return redis.duplicate();
-    }
-  },
+const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
+
+// Create queues with reliable connection method
+const reservationQueue = new Bull("reservation-queue", REDIS_URL, {
   defaultJobOptions: {
-    attempts: 20, // Retry for up to ~100 seconds (20 * 5s)
-    backoff: {
-      type: "fixed",
-      delay: 5000, // Wait 5s between retries
-    },
+    attempts: 20, 
+    backoff: { type: "fixed", delay: 5000 },
     removeOnComplete: true,
-    removeOnFail: 100,
+  },
+});
+
+const expiryQueue = new Bull("expiry-queue", REDIS_URL, {
+  defaultJobOptions: {
+    removeOnComplete: true,
   },
 });
 
