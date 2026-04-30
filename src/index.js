@@ -4,18 +4,15 @@ require("dotenv").config();
 
 const app = express();
 
-// Middleware
-app.use(
-  cors({
-    origin: [
-      process.env.FRONTEND_URL,
-      "https://sneak-drop-frontend.vercel.app",
-      "http://localhost:5173",
-    ],
-    credentials: true,
-  }),
-);
+// Force Permissive CORS for Debugging
+app.use(cors());
 app.use(express.json());
+
+// Detailed Request Logging
+app.use((req, res, next) => {
+  console.log(`[API] ${req.method} ${req.path}`);
+  next();
+});
 
 // Routes
 app.use("/api/drops", require("./routes/drops"));
@@ -24,16 +21,24 @@ app.use("/api", require("./routes/purchases"));
 app.use("/api/users", require("./routes/users"));
 
 app.get("/health", (req, res) => {
-  res.json({ status: "ok", timestamp: new Date() });
+  res.json({ 
+    status: "ok", 
+    environment: process.env.NODE_ENV,
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Global Error Handler
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: "Something broke!" });
+  console.error("💥 SERVER ERROR:", err.stack);
+  res.status(500).json({ error: "Internal Server Error", details: err.message });
 });
 
-// Note: Workers and Socket.io are handled by the Real-time Server (Render)
-// Vercel only serves as the API gateway.
-
+// Export for Vercel
 module.exports = app;
+
+// Local Development Server
+if (process.env.NODE_ENV !== "production") {
+  const PORT = process.env.PORT || 3001;
+  app.listen(PORT, () => console.log(`🚀 API running on http://localhost:${PORT}`));
+}
