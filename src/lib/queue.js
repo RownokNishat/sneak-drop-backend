@@ -23,8 +23,8 @@ const reservationQueue = new Bull("reservation-queue", {
       type: "exponential",
       delay: 2000,
     },
-    removeOnComplete: false,
-    removeOnFail: false,
+    removeOnComplete: true,
+    removeOnFail: 100,
   },
 });
 

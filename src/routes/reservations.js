@@ -23,10 +23,9 @@ router.post("/drops/:dropId/reserve", async (req, res) => {
         timestamp: Date.now(),
       },
       {
-        // Prevent duplicate reservations from same user
         jobId: `reserve-${dropId}-${userId}-${Date.now()}`,
-        removeOnComplete: false,
-        removeOnFail: false,
+        removeOnComplete: true,
+        removeOnFail: 100,
       },
     );
 
