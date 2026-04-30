@@ -14,6 +14,20 @@ router.post("/drops/:dropId/reserve", async (req, res) => {
       return res.status(400).json({ error: "User ID required" });
     }
 
+    // Remove waiting jobs older than 60s — they will never produce a valid reservation
+    try {
+      const waitingJobs = await reservationQueue.getWaiting();
+      const stale = waitingJobs.filter(
+        (j) => Date.now() - j.data.timestamp > 60000
+      );
+      await Promise.all(stale.map((j) => j.remove()));
+      if (stale.length) {
+        console.log(`🧹 Removed ${stale.length} stale waiting jobs`);
+      }
+    } catch (cleanupErr) {
+      console.error("Failed to clean stale jobs:", cleanupErr);
+    }
+
     // Add to queue
     const job = await reservationQueue.add(
       "reserve",
