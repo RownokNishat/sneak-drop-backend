@@ -1,14 +1,8 @@
 const express = require("express");
-const http = require("http");
 const cors = require("cors");
-const { initializeSocket } = require("./lib/socket");
-
 require("dotenv").config();
 
 const app = express();
-const server = http.createServer(app);
-
-const io = initializeSocket(server);
 
 // Middleware
 app.use(
@@ -23,11 +17,6 @@ app.use(
 );
 app.use(express.json());
 
-app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
-  next();
-});
-
 // Routes
 app.use("/api/drops", require("./routes/drops"));
 app.use("/api", require("./routes/reservations"));
@@ -38,20 +27,13 @@ app.get("/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date() });
 });
 
+// Global Error Handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ error: "Something broke!" });
 });
 
-// Workers should ONLY run on the dedicated Real-time Server (Render)
-// Disable them here to prevent Vercel from stalling the queue
-// require("./workers/reservationWorker");
-// require("./workers/expiryWorker");
+// Note: Workers and Socket.io are handled by the Real-time Server (Render)
+// Vercel only serves as the API gateway.
 
-const PORT = process.env.PORT || 3001;
-
-server.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📡 WebSocket server ready`);
-  console.log(`🔄 Queue workers started`);
-});
+module.exports = app;
