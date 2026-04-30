@@ -15,56 +15,31 @@ router.post("/drops/:dropId/purchase", async (req, res) => {
     }
 
     // Atomic purchase transaction
-    const purchase = await prisma.$transaction(async (tx) => {
-      // Verify reservation
+    const result = await prisma.$transaction(async (tx) => {
       const reservation = await tx.reservation.findUnique({
         where: { id: reservationId },
-        include: { drop: true },
+        include: { drop: true }
       });
 
-      if (!reservation) {
-        throw new Error("RESERVATION_NOT_FOUND");
-      }
+      if (!reservation) throw new Error("Reservation not found");
+      if (reservation.status !== "ACTIVE") throw new Error(`Reservation is ${reservation.status}`);
+      if (new Date() > reservation.expiresAt) throw new Error("Reservation has expired");
+      if (reservation.userId !== userId) throw new Error("Unauthorized");
 
-      if (reservation.userId !== userId) {
-        throw new Error("UNAUTHORIZED");
-      }
+      // Mark reservation as completed
+      const updatedReservation = await tx.reservation.update({
+        where: { id: reservationId },
+        data: { status: "COMPLETED" }
+      });
 
-      if (reservation.status !== "ACTIVE") {
-        throw new Error("RESERVATION_NOT_ACTIVE");
-      }
-
-      if (new Date() > reservation.expiresAt) {
-        // Reservation expired during transaction
-        await tx.reservation.update({
-          where: { id: reservationId },
-          data: { status: "EXPIRED" },
-        });
-
-        // Recover stock
-        await tx.drop.update({
-          where: { id: dropId },
-          data: { stock: { increment: 1 } },
-        });
-
-        throw new Error("RESERVATION_EXPIRED");
-      }
-
-      // Create purchase
-      const newPurchase = await tx.purchase.create({
+      // Create purchase record
+      const purchase = await tx.purchase.create({
         data: {
           userId,
-          dropId,
-          reservationId,
+          dropId: reservation.dropId,
+          reservationId
         },
         include: {
-          user: {
-            select: { id: true, username: true },
-          },
-          drop: {
-            select: { name: true, price: true, stock: true },
-          },
-        },
       });
 
       // Update reservation status
