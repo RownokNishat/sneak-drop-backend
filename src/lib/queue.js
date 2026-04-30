@@ -1,13 +1,9 @@
 const Bull = require("bull");
-const redis = require("../config/redis");
-
-// Create Redis client for Bull
-const client = redis;
-const subscriber = redis.duplicate();
+require("dotenv").config();
 
 const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
 
-// Create queues with reliable connection method
+// Create queues with reliable connection method for Vercel
 const reservationQueue = new Bull("reservation-queue", REDIS_URL, {
   defaultJobOptions: {
     attempts: 20, 
@@ -22,31 +18,13 @@ const expiryQueue = new Bull("expiry-queue", REDIS_URL, {
   },
 });
 
-const expiryQueue = new Bull("expiry-queue", {
-  createClient: (type) => {
-    switch (type) {
-      case "client":
-        return client;
-      case "subscriber":
-        return subscriber;
-      default:
-        return redis.duplicate();
-    }
-  },
-  defaultJobOptions: {
-    removeOnComplete: true,
-    removeOnFail: true,
-  },
-});
-
-// Clean up old jobs on startup
+// Clean up old jobs on startup logic (Optional for Vercel)
 async function cleanOldJobs() {
   try {
-    await reservationQueue.clean(3600000, "completed"); // 1 hour
+    await reservationQueue.clean(3600000, "completed");
     await reservationQueue.clean(3600000, "failed");
-    console.log("✅ Cleaned old jobs");
   } catch (error) {
-    console.error("Error cleaning jobs:", error);
+    // Silent fail if Redis is busy
   }
 }
 
