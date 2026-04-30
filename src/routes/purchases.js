@@ -21,13 +21,13 @@ router.post("/drops/:dropId/purchase", async (req, res) => {
         include: { drop: true }
       });
 
-      if (!reservation) throw new Error("Reservation not found");
-      if (reservation.status !== "ACTIVE") throw new Error(`Reservation is ${reservation.status}`);
-      if (new Date() > reservation.expiresAt) throw new Error("Reservation has expired");
-      if (reservation.userId !== userId) throw new Error("Unauthorized");
+      if (!reservation) throw new Error("RESERVATION_NOT_FOUND");
+      if (reservation.status !== "ACTIVE") throw new Error("RESERVATION_NOT_ACTIVE");
+      if (new Date() > reservation.expiresAt) throw new Error("RESERVATION_EXPIRED");
+      if (reservation.userId !== userId) throw new Error("UNAUTHORIZED");
 
       // Mark reservation as completed
-      const updatedReservation = await tx.reservation.update({
+      await tx.reservation.update({
         where: { id: reservationId },
         data: { status: "COMPLETED" }
       });
@@ -40,31 +40,20 @@ router.post("/drops/:dropId/purchase", async (req, res) => {
           reservationId
         },
         include: {
+          user: { select: { username: true } },
+          drop: { select: { id: true, name: true, price: true, stock: true } }
+        }
       });
 
-      // Update reservation status
-      await tx.reservation.update({
-        where: { id: reservationId },
-        data: { status: "COMPLETED" },
-      });
-
-      return newPurchase;
+      return { purchase, drop: reservation.drop };
     });
+
+    const { purchase, drop } = result;
 
     // Broadcast updates (only when Socket.io is available in this process)
     const io = getIO();
     if (io) {
-      io.to(`drop:${dropId}`).emit("stock-update", {
-        dropId,
-        stock: purchase.drop.stock,
-        event: "purchased",
-      });
-
-      io.emit("global-stock-update", {
-        dropId,
-        stock: purchase.drop.stock,
-      });
-
+      // Notify the drop room about the new purchase
       io.to(`drop:${dropId}`).emit("new-purchase", {
         dropId,
         purchase: {
@@ -74,19 +63,20 @@ router.post("/drops/:dropId/purchase", async (req, res) => {
         },
       });
 
+      // Global purchase success for toasts
       io.emit("purchase-success", {
         userId,
         dropId,
         purchase: {
           id: purchase.id,
-          dropName: purchase.drop.name,
-          price: purchase.drop.price,
+          dropName: drop.name,
+          price: drop.price,
         },
         message: "Purchase completed successfully!",
       });
     }
 
-    res.json(purchase);
+    res.json({ message: "Purchase successful", purchase });
   } catch (error) {
     console.error("Purchase error:", error);
 
