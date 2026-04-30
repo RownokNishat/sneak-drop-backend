@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(curl -s -X POST https://sneak-drop-backend.vercel.app/api/drops -H 'Content-Type: application/json' -d '{\"name\":\"Nike Air Jordan 1 Retro High OG\",\"description\":\"Classic Chicago colorway. Limited release.\",\"price\":180,\"stock\":50,\"imageUrl\":\"https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800\"}')"
+    ]
+  }
+}

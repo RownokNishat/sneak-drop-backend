@@ -1,5 +1,6 @@
 const express = require("express");
 const prisma = require("../lib/prisma");
+const redis = require("../config/redis");
 
 const router = express.Router();
 
@@ -21,6 +22,10 @@ router.post("/", async (req, res) => {
         endTime: endTime ? new Date(endTime) : null,
       },
     });
+
+    redis.publish("drops:new", JSON.stringify(drop)).catch((err) =>
+      console.error("Failed to publish new drop:", err)
+    );
 
     res.status(201).json(drop);
   } catch (error) {
