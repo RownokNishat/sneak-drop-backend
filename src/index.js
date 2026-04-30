@@ -43,8 +43,10 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: "Something broke!" });
 });
 
-require("./workers/reservationWorker");
-require("./workers/expiryWorker");
+// Workers should ONLY run on the dedicated Real-time Server (Render)
+// Disable them here to prevent Vercel from stalling the queue
+// require("./workers/reservationWorker");
+// require("./workers/expiryWorker");
 
 const PORT = process.env.PORT || 3001;
 
