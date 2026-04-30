@@ -58,10 +58,7 @@ function initializeSocket(server) {
 }
 
 function getIO() {
-  if (!io) {
-    throw new Error("Socket.io not initialized!");
-  }
-  return io;
+  return io || null;
 }
 
 module.exports = { initializeSocket, getIO };

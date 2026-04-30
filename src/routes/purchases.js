@@ -77,42 +77,40 @@ router.post("/drops/:dropId/purchase", async (req, res) => {
       return newPurchase;
     });
 
-    // Broadcast updates
+    // Broadcast updates (only when Socket.io is available in this process)
     const io = getIO();
+    if (io) {
+      io.to(`drop:${dropId}`).emit("stock-update", {
+        dropId,
+        stock: purchase.drop.stock,
+        event: "purchased",
+      });
 
-    // Stock update (already decremented in reservation)
-    io.to(`drop:${dropId}`).emit("stock-update", {
-      dropId,
-      stock: purchase.drop.stock,
-      event: "purchased",
-    });
+      io.emit("global-stock-update", {
+        dropId,
+        stock: purchase.drop.stock,
+      });
 
-    io.emit("global-stock-update", {
-      dropId,
-      stock: purchase.drop.stock,
-    });
+      io.to(`drop:${dropId}`).emit("new-purchase", {
+        dropId,
+        purchase: {
+          id: purchase.id,
+          username: purchase.user.username,
+          createdAt: purchase.createdAt,
+        },
+      });
 
-    // Purchase event for activity feed
-    io.to(`drop:${dropId}`).emit("new-purchase", {
-      dropId,
-      purchase: {
-        id: purchase.id,
-        username: purchase.user.username,
-        createdAt: purchase.createdAt,
-      },
-    });
-
-    // Notify user
-    io.emit("purchase-success", {
-      userId,
-      dropId,
-      purchase: {
-        id: purchase.id,
-        dropName: purchase.drop.name,
-        price: purchase.drop.price,
-      },
-      message: "Purchase completed successfully!",
-    });
+      io.emit("purchase-success", {
+        userId,
+        dropId,
+        purchase: {
+          id: purchase.id,
+          dropName: purchase.drop.name,
+          price: purchase.drop.price,
+        },
+        message: "Purchase completed successfully!",
+      });
+    }
 
     res.json(purchase);
   } catch (error) {
