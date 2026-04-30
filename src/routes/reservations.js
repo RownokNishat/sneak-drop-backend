@@ -8,7 +8,7 @@ const router = express.Router();
 router.post("/drops/:dropId/reserve", async (req, res) => {
   try {
     const { dropId } = req.params;
-    const userId = req.body.userId || req.headers["x-user-id"];
+    const userId = req.body?.userId || req.headers["x-user-id"];
 
     if (!userId) {
       return res.status(400).json({ error: "User ID required" });
