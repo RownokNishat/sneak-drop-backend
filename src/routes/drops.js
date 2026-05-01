@@ -1,113 +1,55 @@
-const express = require("express");
-const prisma = require("../lib/prisma");
-const redis = require("../config/redis");
-
+const express = require('express');
 const router = express.Router();
+const prisma = require('../lib/prisma');
 
-// Create new drop (Admin API)
-router.post("/", async (req, res) => {
-  try {
-    const { name, description, price, stock, imageUrl, startTime, endTime } =
-      req.body;
+// Get all drops with top 3 recent purchasers
+router.get('/', async (req, res) => {
+    try {
+        const drops = await prisma.drop.findMany({
+            where: { isActive: true },
+            orderBy: { createdAt: 'desc' },
+        });
 
-    const drop = await prisma.drop.create({
-      data: {
-        name,
-        description,
-        price: parseFloat(price),
-        stock: parseInt(stock),
-        initialStock: parseInt(stock),
-        imageUrl,
-        startTime: startTime ? new Date(startTime) : new Date(),
-        endTime: endTime ? new Date(endTime) : null,
-      },
-    });
+        const dropsWithPurchasers = await Promise.all(
+            drops.map(async (drop) => {
+                const recentPurchases = await prisma.purchase.findMany({
+                    where: { dropId: drop.id },
+                    orderBy: { createdAt: 'desc' },
+                    take: 3,
+                    include: { user: { select: { username: true } } },
+                });
+                return {
+                    ...drop,
+                    recentPurchasers: recentPurchases.map((p) => p.user.username),
+                };
+            })
+        );
 
-    redis.publish("drops:new", JSON.stringify(drop)).catch((err) =>
-      console.error("Failed to publish new drop:", err)
-    );
-
-    res.status(201).json(drop);
-  } catch (error) {
-    console.error("Create drop error:", error);
-    res.status(500).json({ error: "Failed to create drop" });
-  }
-});
-
-// Get all active drops with recent purchases
-router.get("/", async (req, res) => {
-  try {
-    const drops = await prisma.drop.findMany({
-      where: { isActive: true },
-      include: {
-        purchases: {
-          take: 3,
-          orderBy: { createdAt: "desc" },
-          include: {
-            user: {
-              select: { id: true, username: true },
-            },
-          },
-        },
-        _count: {
-          select: { reservations: true },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-    res.json(drops);
-  } catch (error) {
-    console.error("Get drops error:", error);
-    res.status(500).json({ error: "Failed to fetch drops" });
-  }
-});
-
-// Get single drop
-router.get("/:id", async (req, res) => {
-  try {
-    const drop = await prisma.drop.findUnique({
-      where: { id: req.params.id },
-      include: {
-        purchases: {
-          take: 3,
-          orderBy: { createdAt: "desc" },
-          include: {
-            user: {
-              select: { id: true, username: true },
-            },
-          },
-        },
-      },
-    });
-
-    if (!drop) {
-      return res.status(404).json({ error: "Drop not found" });
+        res.json(dropsWithPurchasers);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
     }
-
-    res.json(drop);
-  } catch (error) {
-    console.error("Get drop error:", error);
-    res.status(500).json({ error: "Failed to fetch drop" });
-  }
 });
 
-// Check stock (real-time endpoint)
-router.get("/:id/stock", async (req, res) => {
-  try {
-    const drop = await prisma.drop.findUnique({
-      where: { id: req.params.id },
-      select: { stock: true, name: true },
-    });
-
-    if (!drop) {
-      return res.status(404).json({ error: "Drop not found" });
+// Create a new drop (Admin API)
+router.post('/', async (req, res) => {
+    try {
+        const { name, description, price, totalStock, startsAt, imageUrl } = req.body;
+        const drop = await prisma.drop.create({
+            data: {
+                name,
+                description,
+                price: parseFloat(price),
+                totalStock: parseInt(totalStock),
+                availableStock: parseInt(totalStock),
+                startsAt: startsAt ? new Date(startsAt) : new Date(),
+                imageUrl
+            },
+        });
+        res.status(201).json(drop);
+    } catch (error) {
+        res.status(400).json({ error: error.message });
     }
-
-    res.json(drop);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch stock" });
-  }
 });
 
 module.exports = router;
